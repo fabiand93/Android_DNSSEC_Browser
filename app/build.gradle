@@ -1,0 +1,30 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 21
+    buildToolsVersion "23.0.1"
+
+    defaultConfig {
+        applicationId "com.ennio.calderoni.dnssec_browser10"
+        minSdkVersion 10
+        targetSdkVersion 21
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:21.0.3'
+    compile files('libs/dnsjava-2.1.7.jar')
+    compile files('libs/dnssecjava-1.0-SNAPSHOT.jar')
+    compile files('libs/android-logging-log4j-1.0.3.jar')
+    compile files('libs/log4j-1.2.15.jar')
+}
