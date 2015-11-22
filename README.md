@@ -1,4 +1,4 @@
-# Android_DNSSEC_Browser
+# README
 
 This is a simple Android Browser that allow you to validate the domains answer you recieve from DNSSEC signed domain names.
 
