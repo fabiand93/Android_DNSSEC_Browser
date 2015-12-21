@@ -15,24 +15,19 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-
+import org.xbill.DNS.TextParseException;
 import java.io.IOException;
-
+import java.net.UnknownHostException;
 
 
 public class MainActivity extends ActionBarActivity {
     private WebSettings webSettings;
     private WebView myWebView;
     EditText myTxtURL;
-    ImageButton button;
     Button secButton;
     ProgressBar progress;
-
-
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,9 +42,9 @@ public class MainActivity extends ActionBarActivity {
         webSettings.setJavaScriptEnabled(true);
         webSettings.setBuiltInZoomControls(true);
         myWebView.setWebViewClient(new Browser(this, secButton, progress, myTxtURL));
-        myWebView.loadUrl("http://www.google.com");
-        button = (ImageButton) findViewById(R.id.search_go_btn);
-        button.requestFocus();
+        myWebView.clearCache(true);
+        myWebView.loadUrl("http://duckduckgo.com");
+
 
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 
@@ -63,23 +58,21 @@ public class MainActivity extends ActionBarActivity {
         }
 
 
-
-
         myTxtURL.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
-                    EditText url = (EditText) findViewById(R.id.url);
-                    final String urlToValidate = url.getText().toString();
 
-                    passUrl(urlToValidate);
-
+                    try {
+                        View v1 = null;
+                        search(v1);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
 
                 }
                 return false;
             }
         });
-
-
 
     }
 
@@ -107,41 +100,37 @@ public class MainActivity extends ActionBarActivity {
             builder.setMessage("Connect the Device to Internet");
             builder.show();
         }
+        else {
 
-        EditText url = (EditText) findViewById(R.id.url);
-        final String urlToValidate = url.getText().toString();
-        if (!urlToValidate.isEmpty()) {
-            passUrl(urlToValidate);
+            EditText url = (EditText) findViewById(R.id.url);
+            final String urlToValidate = url.getText().toString();
+            if (!urlToValidate.isEmpty()) {
+                passUrl(urlToValidate);
+            }
         }
-
 
     }
 
-    public void passUrl(String urlToValidate) {
+    public void passUrl(String urlToValidate) throws TextParseException, UnknownHostException {
 
         secButton.setTextColor(Color.GRAY);
         secButton.setClickable(true);
         Browser b = new Browser(this, secButton, progress, myTxtURL);
-        boolean rogue=false;
+        //boolean rogue=false;
         progress.setVisibility(View.VISIBLE);
-        urlToValidate = urlToValidate.replace("https://", "");
-        urlToValidate = urlToValidate.replace("http://", "");
-
+        urlToValidate = b.cleaning(urlToValidate);
+        myWebView.clearCache(true);
         myWebView.loadUrl("http://" + urlToValidate);
         int colorId = secButton.getCurrentTextColor();
         if (colorId==-7829368) {
             try {
-                if(urlToValidate.contains("/")) {
-                    urlToValidate = urlToValidate.substring(0, urlToValidate.indexOf("/") - 1);
-                }
-                rogue = b.validator(urlToValidate + ".", myWebView);
+                urlToValidate = b.cleaning(urlToValidate);
+                b.validator(urlToValidate + ".", myWebView);
             } catch (IOException e) {
                 System.out.println("validator :" + e);
             }
 
-            if (rogue) {
-                myWebView.loadUrl("file:///android_asset/stop.html");
-            }
+
         }
 
     }
@@ -175,8 +164,5 @@ public class MainActivity extends ActionBarActivity {
 
         builder.show();
     }
-
-
-
 
 }

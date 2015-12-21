@@ -6,10 +6,10 @@ android {
 
     defaultConfig {
         applicationId "com.ennio.calderoni.dnssec_browser10"
-        minSdkVersion 10
-        targetSdkVersion 21
-        versionCode 1
-        versionName "1.0"
+        minSdkVersion 21
+        targetSdkVersion 23
+        versionCode 5
+        versionName "4.1"
     }
     buildTypes {
         release {
