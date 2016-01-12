@@ -39,7 +39,7 @@
             android:layout_weight="1.6"
             android:elegantTextHeight="false"
 
-            />
+            android:autoText="false" />
 
         <ImageButton
             android:layout_width="fill_parent"

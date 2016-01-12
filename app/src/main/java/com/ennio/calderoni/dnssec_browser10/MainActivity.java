@@ -43,7 +43,7 @@ public class MainActivity extends ActionBarActivity {
         webSettings.setBuiltInZoomControls(true);
         myWebView.setWebViewClient(new Browser(this, secButton, progress, myTxtURL));
         myWebView.clearCache(true);
-        myWebView.loadUrl("http://duckduckgo.com");
+        myWebView.loadUrl("https://duckduckgo.com");
 
 
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
@@ -94,11 +94,14 @@ public class MainActivity extends ActionBarActivity {
 
     public void search(View v) throws IOException {
 
+        progress.setVisibility(v.VISIBLE);
+        myWebView.clearCache(true);
         if (!isNetworkAvailable()){
             AlertDialog.Builder builder=new AlertDialog.Builder(this);
             builder.setTitle("No Internet Connection");
             builder.setMessage("Connect the Device to Internet");
             builder.show();
+            progress.setVisibility(v.GONE);
         }
         else {
 
@@ -107,20 +110,31 @@ public class MainActivity extends ActionBarActivity {
             if (!urlToValidate.isEmpty()) {
                 passUrl(urlToValidate);
             }
+            else
+                progress.setVisibility(v.GONE);
         }
 
     }
 
     public void passUrl(String urlToValidate) throws TextParseException, UnknownHostException {
 
+
         secButton.setTextColor(Color.GRAY);
         secButton.setClickable(true);
         Browser b = new Browser(this, secButton, progress, myTxtURL);
         //boolean rogue=false;
         progress.setVisibility(View.VISIBLE);
-        urlToValidate = b.cleaning(urlToValidate);
-        myWebView.clearCache(true);
-        myWebView.loadUrl("http://" + urlToValidate);
+        if (urlToValidate.contains("https://")) {
+            urlToValidate = b.cleaning(urlToValidate);
+            myWebView.loadUrl("https://" + urlToValidate);
+            myTxtURL.setText("https://" + urlToValidate);
+        }else
+        {
+         //   boolean overrided = false;
+            urlToValidate = b.cleaning(urlToValidate);
+            myWebView.loadUrl("http://" + urlToValidate);
+            myTxtURL.setText("http://" + urlToValidate);
+        }
         int colorId = secButton.getCurrentTextColor();
         if (colorId==-7829368) {
             try {

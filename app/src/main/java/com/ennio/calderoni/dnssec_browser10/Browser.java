@@ -1,12 +1,16 @@
 package com.ennio.calderoni.dnssec_browser10;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.util.Log;
 import android.view.View;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -27,14 +31,13 @@ import org.xbill.DNS.Type;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 
 
 
 
 /**
- * Created by oinne on 11/9/15.
+ * Created by Ennio Calderoni on 11/9/15.
  */
 /*this class contains the functions needed for the validation of domains*/
 public class Browser extends WebViewClient {
@@ -61,6 +64,13 @@ public class Browser extends WebViewClient {
 
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
+        myTxtURL.setText(url);
+       /* if (!url.contains("https://")){
+            AlertDialog.Builder builder=new AlertDialog.Builder(mContext);
+            builder.setTitle("No HTTPS Connection");
+            builder.setMessage("the data exchanged with the website are not encrypted ");
+            builder.show();
+        }*/
         if (!url.isEmpty()) {
             progress.setVisibility(View.VISIBLE);
 
@@ -75,8 +85,17 @@ public class Browser extends WebViewClient {
             }
 
         }
-
             return false;
+    }
+
+    @Override
+    public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+         // says there is something wrong with ssl certificate
+        AlertDialog.Builder builder=new AlertDialog.Builder(mContext);
+        handler.cancel();
+        builder.setTitle("This Connection is Untrusted");
+        builder.setMessage(" The Connection with the URL have been stopped for security reasons ");
+        builder.show();
     }
 
     @Override
@@ -94,9 +113,9 @@ public class Browser extends WebViewClient {
 
     public String cleaning (String urlToCheck){
 
+        //myTxtURL.setText(urlToCheck);
         urlToCheck = urlToCheck.replace("https://", "");
         urlToCheck = urlToCheck.replace("http://", "");
-        myTxtURL.setText(urlToCheck);
 
         if (urlToCheck.startsWith("/")) {
             urlToCheck = urlToCheck.substring(1, urlToCheck.length());
@@ -127,7 +146,7 @@ public class Browser extends WebViewClient {
         return isIp4 | isIp6;
     }
 
-    public boolean isEqualIp(String url, ValidatingResolver vr, int method) throws IOException {
+    public boolean isEqualIp(String url, ValidatingResolver vr, int method, SimpleResolver sr) throws IOException {
 /* this function checks if the url is an ip*/
         // better change the contain with equal
         //check for A results with google DNS
@@ -141,16 +160,9 @@ public class Browser extends WebViewClient {
         InetAddress addr = Address.getByName(url);
         String addr1 = addr.toString();
         addr1 = addr1.substring(addr1.indexOf("/") + 1);
-       // check for a SERVERFAIL from the lookup
 
-
-
-
-
-        if (response.toString().contains("SERVERFAIL"))
-            return false;
         // method is 1 if the domain is protected with DNSSEC else if not
-        else if (method == 1) {
+         if (method == 1) {
             return stringSection.contains(addr1);
         }
         else {
@@ -160,7 +172,7 @@ public class Browser extends WebViewClient {
             else {
 
                 Lookup lookup = new Lookup(url, Type.NS);
-                lookup.setResolver(new SimpleResolver("8.8.8.8"));
+                lookup.setResolver(sr);
                 lookup.run();
                 String ns = "";
                 if (lookup.getResult() == Lookup.SUCCESSFUL) {
@@ -176,8 +188,12 @@ public class Browser extends WebViewClient {
 
                     stringSection = null;
                     qr = Record.newRecord(Name.fromConstantString(ns), Type.A, DClass.IN);
+                  //  long startTime = System.currentTimeMillis();
                     response = vr.send(Message.newQuery(qr));
+                  //  long finishTime = System.currentTimeMillis();
+                  //  long elapsedTime = startTime - finishTime;
                     stringSection = "" + response.sectionToString(1);
+
 
 
                     addr = Address.getByName(ns);
@@ -190,7 +206,7 @@ public class Browser extends WebViewClient {
                 } else {
                     String parent = url.substring(url.indexOf(".") + 1);
                     Lookup lookup1 = new Lookup(parent, Type.NS);
-                    lookup1.setResolver(new SimpleResolver("8.8.8.8"));
+                    lookup1.setResolver(sr);
                     lookup1.run();
                     String ns1 = "";
                     if (lookup1.getResult() == Lookup.SUCCESSFUL) {
@@ -213,7 +229,6 @@ public class Browser extends WebViewClient {
                         addr = Address.getByName(ns1);
                         addr1 = addr.toString();
                         addr1 = addr1.substring(addr1.indexOf("/") + 1);
-
 
                         return stringSection.contains(addr1.toString());
 
@@ -246,7 +261,7 @@ public class Browser extends WebViewClient {
 
         assert sr != null;
         ValidatingResolver vr = new ValidatingResolver(sr);
-        vr.setTimeout(3);
+        vr.setTimeout(10);
         try {
             vr.loadTrustAnchors(new ByteArrayInputStream(ROOT.getBytes("ASCII")));
         } catch (IOException e) {
@@ -257,21 +272,60 @@ public class Browser extends WebViewClient {
         WifiInfo wifiInfo = wifiManager.getConnectionInfo();
         String wifi = wifiInfo.getSSID();
         Boolean hijacking= false;
-        if (!wifi.contains("unknow ssid")){
-            InetAddress address = InetAddress.getByName(url);
-            hijacking = address.isReachable(NetworkInterface.getByName(wifi), 3, 10000); // if there are less than 3 hops of distance betwwen the client it is probable it is hijacted inside the same network
 
-        }
 
         Record qr = Record.newRecord(Name.fromConstantString(url), Type.A, DClass.IN);
+        long startTime = System.currentTimeMillis();
         Message response = vr.send(Message.newQuery(qr));
+        long finishTime = System.currentTimeMillis();
+        long elapsedTime = finishTime-startTime;
+        if (elapsedTime >= 9000) {
+            view.loadUrl("file:///android_asset/exceded.html");
+            return false;
+        }
+
 
 
         boolean equal = false;
         String adFlag = "" + response.getHeader().getFlag(Flags.AD);
         String RCode = Rcode.string(response.getRcode());
 
+
         if (!isIp(url)) {
+
+            if (!wifi.contains("unknow ssid")&&url!=null){
+
+
+                String addr1 =null;
+                String addr2= null;
+                InetAddress addr = null;
+                try {
+                    addr = Address.getByName(url);
+                    addr1 = addr.toString();
+                    addr1 = addr1.substring(addr1.indexOf("/") + 1);
+                    addr2 = addr1.substring(0, 3);
+                    if (addr2.equals("10.")) {
+                        hijacking = true;
+                    } else if (addr2.equals("172")) {
+                        addr2 = addr1.substring(3, 7);
+                        if (15 < Integer.parseInt(addr2) && Integer.parseInt(addr2) < 32)
+
+                        hijacking = true;
+                    } else {
+                        addr2 = addr1.substring(0, 7);
+                        if (addr2.equals("192.168")) {
+                            hijacking = true;
+                        }
+                    }
+                }
+                catch (Exception e) {
+                    Log.w("errore", "nessun ip");
+                }
+
+
+            }
+
+
             if (hijacking){
                 secButton.setBackgroundColor(Color.RED);
                 secButton.setTextColor(Color.RED);
@@ -279,7 +333,7 @@ public class Browser extends WebViewClient {
                 return false;
 
             } else if (adFlag.contains("true") && RCode.contains("NOERROR")) {
-                equal = isEqualIp(url, vr, 1);
+                equal = isEqualIp(url, vr, 1, sr);
                 if (equal) {
                     secButton.setBackgroundColor(Color.GREEN);
                     secButton.setTextColor(Color.GREEN);
@@ -290,7 +344,7 @@ public class Browser extends WebViewClient {
 
                 }
             } else if (adFlag.contains("false") && RCode.contains("NOERROR")) {
-                equal = isEqualIp(url, vr, 2);
+                equal = isEqualIp(url, vr, 2, sr);
                 if (equal) {
                     secButton.setBackgroundColor(Color.YELLOW);
                     secButton.setTextColor(Color.YELLOW);
@@ -310,9 +364,10 @@ public class Browser extends WebViewClient {
             secButton.setBackgroundColor(Color.GRAY);
             secButton.setTextColor(Color.GRAY);
         }
-        return rogue;
-    }
 
+        return rogue;
+
+    }
 
 
 }
